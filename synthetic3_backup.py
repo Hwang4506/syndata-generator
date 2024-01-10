@@ -7,12 +7,14 @@ import time
 from tqdm import tqdm
 import sys
 import random
+import bgremove
+from pathlib import Path
 
 # path 설정
 obj_dict = {
     4: {'folder': "fire2", 'longest_min': 150, 'longest_max': 200},
     #2: {'folder': "flame", 'longest_min': 150, 'longest_max': 200},
-} #longest_min : 합성 물체 이미지와 배경 이미지의 h,w 크기의 최소값(default=30), longest_max : 합성 물체 이미지와 배경 이미지의 h,w 크기의 최대값
+} #longest_min : 합성 물체 크기 최소값, longest_max : 합성 물체 크기 최대값
 
 PATH_MAIN = "C:\\Users\\user\\Desktop\\syn_test\\"
 
@@ -37,11 +39,12 @@ for k, _ in obj_dict.items():
     obj_dict[k]['images'] = files_imgs
     obj_dict[k]['masks'] = files_masks
     
-print("The first five files from the sorted list of fire images:", obj_dict[4]['images'][:5])
-print("\nThe first five files from the sorted list of fire masks:", obj_dict[4]['masks'][:5])
+#print("The first five files from the sorted list of fire images:", obj_dict[4]['images'][:5])
+#print("\nThe first five files from the sorted list of fire masks:", obj_dict[4]['masks'][:5])
 
 files_bg_imgs = sorted(os.listdir(os.path.join(PATH_MAIN, 'bg')))
 files_bg_imgs = [os.path.join(PATH_MAIN, 'bg', f) for f in files_bg_imgs]
+bg_number = len(files_bg_imgs) #배경이미지 개수
 
 '''
 # 노이즈 추가
@@ -51,7 +54,7 @@ files_bg_noise_masks = sorted(os.listdir(os.path.join(PATH_MAIN, "bg_noise", "ma
 files_bg_noise_masks = [os.path.join(PATH_MAIN, "bg_noise", "masks", f) for f in files_bg_noise_masks]
 '''
 
-print("\nThe first five files from the sorted list of background images:", files_bg_imgs[:5])
+#print("\nThe first five files from the sorted list of background images:", files_bg_imgs[:5])
 #print("\nThe first five files from the sorted list of background noise images:", files_bg_noise_imgs[:5])
 #print("\nThe first five files from the sorted list of background noise masks:", files_bg_noise_masks[:5])
 
@@ -510,7 +513,7 @@ def printsave(*a):
     file = open('C:\\Users\\user\\Desktop\\syn_test\\result.txt','a')
     print(*a,file=file)
     file.close()
-
+""" 
 # 라벨링 파일 생성 테스트
 img_bg_path = files_bg_imgs[0]
 img_bg = cv2.imread(img_bg_path)
@@ -552,36 +555,57 @@ cv2.waitKey()
 cv2.destroyAllWindows()
 
 annotations_yolo = create_yolo_annotations(mask_comp, labels_comp)
-for i in range(len(annotations_yolo)):
-    print(' '.join(str(el) for el in annotations_yolo[i]))
+# for i in range(len(annotations_yolo)):
+#     print(' '.join(str(el) for el in annotations_yolo[i]))
 for i in range(len(annotations_yolo)):
     printsave(' '.join(str(el) for el in annotations_yolo[i]))
-
-
+ """
 
 #합성 데이터 셋 생성
-def generate_dataset(imgs_number, folder, split='train'):
-    time_start = time.time()
-    for j in tqdm(range(imgs_number)):        
-        img_comp, mask_comp, labels_comp, _ = create_composition(img_comp_bg,
-                                                                 max_objs=15,
-                                                                 overlap_degree=0.2,
-                                                                 max_attempts_per_obj=10)
-
-        img_comp = cv2.cvtColor(img_comp, cv2.COLOR_RGB2BGR)
-        cv2.imwrite(os.path.join(folder, split, 'images/{}.jpg').format(j), img_comp)
-
-        annotations_yolo = create_yolo_annotations(mask_comp, labels_comp)
-        for i in range(len(annotations_yolo)):
-            with open(os.path.join(folder, split, 'labels/{}.txt').format(j), "a") as f:
-                f.write(' '.join(str(el) for el in annotations_yolo[i]) + '\n')
-                
-    time_end = time.time()
-    time_total = round(time_end - time_start)
-    time_per_img = round((time_end - time_start) / imgs_number, 1)
+def generate_dataset(imgs_number, split=None):
+    syn_result_pre_path = Path(bgremove.result_path1/'syn_result') 
+    syn_result_path = None
+    if os.path.isdir(syn_result_pre_path)==False:
+        os.mkdir(syn_result_pre_path )
+    if split:
+        split_path = Path(syn_result_pre_path/split) 
+        if os.path.isdir(split_path)==False:
+            os.mkdir(split_path)
+        syn_result_path = split_path
+    else:
+        syn_result_path = syn_result_pre_path
     
-    print("Generation of {} synthetic images is completed. It took {} seconds, or {} seconds per image".format(imgs_number, time_total, time_per_img))
-    print("Images are stored in '{}'".format(os.path.join(folder, split, 'images')))
-    print("Annotations are stored in '{}'".format(os.path.join(folder, split, 'labels')))
+    time_start = time.time()
 
-    generate_dataset(10, folder='dataset', split='train')
+    for i in range(0,bg_number):
+        img_bg_path = files_bg_imgs[i]
+        bg_name = os.path.splitext(os.path.basename(img_bg_path))[0]
+        img_bg = cv2.imread(img_bg_path)
+        #img_bg = cv2.cvtColor(img_bg, cv2.COLOR_BGR2RGB)
+        re_img_bg = resize_img(img_bg, desired_max=800, desired_min=800)
+        for j in tqdm(range(imgs_number)):        
+            img_comp, mask_comp, labels_comp, _ = create_composition(re_img_bg,
+                                                                    max_objs=15,
+                                                                    overlap_degree=0.2,
+                                                                    max_attempts_per_obj=10)
+
+            #img_comp = cv2.cvtColor(img_comp, cv2.COLOR_RGB2BGR)
+            cv2.imwrite(os.path.join(syn_result_path, '{}_out_{:010d}.jpg').format(bg_name, j+1), img_comp)
+
+            annotations_yolo = create_yolo_annotations(mask_comp, labels_comp)
+            for i in range(len(annotations_yolo)):
+                with open(os.path.join(syn_result_path, '{}_out_{:010d}.txt').format(bg_name, j+1), "a") as f:
+                    f.write(' '.join(str(el) for el in annotations_yolo[i]) + '\n')
+                
+        time_end = time.time()
+        time_total = round(time_end - time_start)
+        time_per_img = round((time_end - time_start) / imgs_number, 1)
+    
+    print("Generation of {} synthetic images is completed. It took {} seconds, or {} seconds per image".format(imgs_number*bg_number, time_total, time_per_img))
+    print("results are stored in '{}'".format(syn_result_path))
+    # print("Images are stored in '{}'".format(os.path.join(folder, split, 'images')))
+    # print("Annotations are stored in '{}'".format(os.path.join(folder, split, 'labels')))
+
+generate_dataset(3, split='train')
+
+
