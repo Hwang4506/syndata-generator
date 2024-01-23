@@ -7,11 +7,11 @@ import time
 from tqdm import tqdm
 import sys
 import random
-import syn_obj_maker
+import syn_obj_maker_method
 from pathlib import Path
 
 # path 설정
-#PATH_MAIN = "C:\\Users\\user\\Desktop\\syn_test\\"
+PATH_MAIN = "C:\\Users\\user\\Desktop\\syn_gen_test_out\\"
 
 obj_dict = {
     4: {'folder': "fire", 'longest_min': 150, 'longest_max': 200},
@@ -31,11 +31,11 @@ obj_list = list(obj_dict.keys())
 for k, _ in obj_dict.items():
     folder_name = obj_dict[k]['folder']
         
-    files_imgs = sorted(os.listdir(os.path.join(syn_obj_maker.result_pre_path, 'images', folder_name)))
-    files_imgs = [os.path.join(syn_obj_maker.result_pre_path, 'images', folder_name, f) for f in files_imgs]
+    files_imgs = sorted(os.listdir(os.path.join(syn_obj_maker_method.result_pre_path, 'images', folder_name)))
+    files_imgs = [os.path.join(syn_obj_maker_method.result_pre_path, 'images', folder_name, f) for f in files_imgs]
         
-    files_masks = sorted(os.listdir(os.path.join(syn_obj_maker.result_pre_path, 'masks', folder_name)))
-    files_masks = [os.path.join(syn_obj_maker.result_pre_path, 'masks', folder_name, f) for f in files_masks]
+    files_masks = sorted(os.listdir(os.path.join(syn_obj_maker_method.result_pre_path, 'masks', folder_name)))
+    files_masks = [os.path.join(syn_obj_maker_method.result_pre_path, 'masks', folder_name, f) for f in files_masks]
         
     obj_dict[k]['images'] = files_imgs
     obj_dict[k]['masks'] = files_masks
@@ -43,9 +43,11 @@ for k, _ in obj_dict.items():
 # print("The first five files from the sorted list of fire images:", obj_dict[2]['images'][:5])
 # print("\nThe first five files from the sorted list of fire masks:", obj_dict[2]['masks'][:5])
 
-files_bg_imgs = sorted(os.listdir(os.path.join(syn_obj_maker.bg_path)))
-files_bg_imgs = [os.path.join(syn_obj_maker.bg_path, f) for f in files_bg_imgs]
+files_bg_imgs = sorted(os.listdir(os.path.join(syn_obj_maker_method.bg_path)))
+files_bg_imgs = [os.path.join(syn_obj_maker_method.bg_path, f) for f in files_bg_imgs]
 bg_number = len(files_bg_imgs) #배경이미지 개수
+
+print(f'obj_dict : {obj_dict}')
 
 '''
 # 노이즈 추가
@@ -569,7 +571,7 @@ for i in range(len(annotations_yolo)):
 
 #합성 데이터 셋 생성
 def generate_dataset(imgs_number, split=None):
-    syn_result_pre_path = Path(syn_obj_maker.result_pre_path/'syn_result') 
+    syn_result_pre_path = Path(syn_obj_maker_method.result_pre_path/'syn_result') 
     syn_result_path = None
     if os.path.isdir(syn_result_pre_path)==False:
         os.mkdir(syn_result_pre_path )
@@ -603,16 +605,16 @@ def generate_dataset(imgs_number, split=None):
                 with open(os.path.join(syn_result_path, '{}_out_{:010d}.txt').format(bg_name, j+1), "a") as f:
                     f.write(' '.join(str(el) for el in annotations_yolo[i]) + '\n')
                 
-        time_end = time.time()
-        time_total = round(time_end - time_start)
-        time_per_img = round((time_end - time_start) / imgs_number, 1)
+    time_end = time.time()
+    time_total = round(time_end - time_start)
+    time_per_img = round((time_end - time_start) / imgs_number, 1)
     
     print("Generation of {} synthetic images is completed. It took {} seconds, or {} seconds per image".format(imgs_number*bg_number, time_total, time_per_img))
     print("results are stored in '{}'".format(syn_result_path))
     # print("Images are stored in '{}'".format(os.path.join(folder, split, 'images')))
     # print("Annotations are stored in '{}'".format(os.path.join(folder, split, 'labels')))
 
-if __name__ == "__main__":
-    generate_dataset(3, split='train')
+# if __name__ == "__main__":
+#     generate_dataset(3, split='train')
 
 
