@@ -5,6 +5,10 @@ import os
 import cv2
 from PyQt5.QtCore import QThread
 from PyQt5 import QtCore
+from PyQt5.QtWidgets import *
+from PyQt5 import uic , QtCore
+from PyQt5.QtWidgets import QApplication, QWidget, QTabWidget, QVBoxLayout
+from PyQt5.QtGui import *
 
 class syn_obj_maker(QThread):     
     obj_orig_path = Path() #합성물체 이미지 원본 폴더 위치
